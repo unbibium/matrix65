@@ -41,8 +41,9 @@ LOOP1:
     ; todo get random byte
     tya
     sta (mscr),y
-    ;tyx
-    ;inc raindrops,x
+    tya
+    tax
+    inc raindrops,x
 DRAWTRAIL:
     ; draw color trail
     ldx #numcolors-1 ; color index
