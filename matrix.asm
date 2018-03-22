@@ -5,6 +5,8 @@ CHROUT = $FFD2
 mscr = $FB
 mcolor = $FD
 
+SCRMEM = 1024
+COLMEM = 55296
 
 ; color constants
 LT_GREEN = 13
@@ -26,15 +28,42 @@ LOOP
     ldy #WIDTH-1
 LOOP1:
     lda raindrops,y ;get raindrop position
-    sta $0400,y
+    sta $0400,y ;XXX
     cmp #HEIGHT-1
     bcs LOOP2
     jsr MUL40
+    ; see if scr is correct
+    ldx mscr+1
+    cpx #>SCRMEM
+    bmi DRAWTRAIL
+    cpx #>SCRMEM+4
+    bpl DRAWTRAIL
     ; todo get random byte
     tya
     sta (mscr),y
-    lda #DK_GREEN
+    ;tyx
+    ;inc raindrops,x
+DRAWTRAIL:
+    ; draw color trail
+    ldx #numcolors-1 ; color index
+TRAILLOOP:
+    lda mcolor+1
+    cmp #>COLMEM
+    bmi NEXTTRAIL
+    cmp #>COLMEM+4
+    bpl NEXTTRAIL
+    lda COLORS,x
     sta (mcolor),y
+NEXTTRAIL:
+    lda mcolor
+    sec
+    sbc #40
+    sta mcolor
+    bcs NEXTTRAIL2
+    dec mcolor+1
+NEXTTRAIL2:
+    dex
+    bpl TRAILLOOP
     
 LOOP2
     dey
@@ -44,7 +73,7 @@ ENDUT:
     ;jmp LOOP
 
 COLORS:
-    byte 1,13,6,6,0
+    byte 0,5,5,13,1
 ENDCOLORS
 
 numcolors = ENDCOLORS-COLORS
