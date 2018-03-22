@@ -11,7 +11,7 @@ mcolor = $FD
 
 SCRMEM = 1024
 COLMEM = 55296
-PAGES = 3  ; should be 4
+PAGES = 4  ; should be 4
 
 ; color constants
 LT_GREEN = 13
@@ -19,7 +19,7 @@ DK_GREEN = 5
 
 ; screen dimensions
 WIDTH = 40
-HEIGHT = 10
+HEIGHT = 25
 
 START:
 ; turn screen black and clear
@@ -45,10 +45,16 @@ LOOPA:
     ;cmp #HEIGHT-1
     ;bcs LOOP2
     jsr MUL40
-    ; see if scr is correct
+    ; see if (mscr),y falls within screen boundary
     ldx mscr+1
+    tya
+    clc
+    adc mscr
+    bcc LOOPB
+    inx
+LOOPB:
     cpx #>SCRMEM
-    bmi DRAWTRAIL
+    bmi DRAWTRAIL ; lower bound check
     cpx #>SCRMEM+PAGES
     bpl DRAWTRAIL
     jsr GETRAND
@@ -57,7 +63,12 @@ DRAWTRAIL:
     ; draw color trail
     ldx #numcolors-1 ; color index
 TRAILLOOP:
-    lda mcolor+1
+    ; see if (mcolor),y falls within screen boundary
+    tya
+    clc
+    adc mcolor
+    lda #0
+    adc mcolor+1
     cmp #>COLMEM
     bmi NEXTTRAIL
     cmp #>COLMEM+PAGES
