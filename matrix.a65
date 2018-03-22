@@ -1,5 +1,9 @@
   processor 6502 
 
+; This is supposed to generate a Matrix code rain effect.
+;
+;
+
     ORG $c000
 CHROUT = $FFD2
 mscr = $FB
@@ -7,6 +11,7 @@ mcolor = $FD
 
 SCRMEM = 1024
 COLMEM = 55296
+PAGES = 3  ; should be 4
 
 ; color constants
 LT_GREEN = 13
@@ -17,7 +22,7 @@ WIDTH = 40
 HEIGHT = 10
 
 START:
-; turn screen black
+; turn screen black and clear
     lda #0
     sta $d020
     sta $d021
@@ -28,22 +33,26 @@ LOOP
     ldy #WIDTH-1
 LOOP1:
     lda raindrops,y ;get raindrop position
-    sta $0400,y ;XXX
-    cmp #HEIGHT-1
-    bcs LOOP2
+    ; reset if >64
+    bmi LOOPA
+    cmp #HEIGHT+numcolors
+    bmi LOOPA
+    ; get random number -16 <= n <= -1
+    jsr GETRAND
+    ora #$F0
+    sta raindrops,y
+LOOPA:
+    ;cmp #HEIGHT-1
+    ;bcs LOOP2
     jsr MUL40
     ; see if scr is correct
     ldx mscr+1
     cpx #>SCRMEM
     bmi DRAWTRAIL
-    cpx #>SCRMEM+4
+    cpx #>SCRMEM+PAGES
     bpl DRAWTRAIL
-    ; todo get random byte
-    tya
+    jsr GETRAND
     sta (mscr),y
-    tya
-    tax
-    inc raindrops,x
 DRAWTRAIL:
     ; draw color trail
     ldx #numcolors-1 ; color index
@@ -51,7 +60,7 @@ TRAILLOOP:
     lda mcolor+1
     cmp #>COLMEM
     bmi NEXTTRAIL
-    cmp #>COLMEM+4
+    cmp #>COLMEM+PAGES
     bpl NEXTTRAIL
     lda COLORS,x
     sta (mcolor),y
@@ -67,22 +76,24 @@ NEXTTRAIL2:
     bpl TRAILLOOP
     
 LOOP2
+    tya
+    tax
+    inc raindrops,x
     dey
     bpl LOOP1
-ENDUT:
+ENDUT: 
     rts
     ;jmp LOOP
 
 COLORS:
-    byte 0,5,5,13,1
+    byte 0,5,5,5,13,13,1
 ENDCOLORS
 
 numcolors = ENDCOLORS-COLORS
 
-
-row:
-     byte 0
-
+;
+; Multiply a row number by 40
+;
 MUL40:
     ; multiply by five
     sta mscr
@@ -109,14 +120,29 @@ MUL40B:
     ; add 4 for screen location
     lda mscr+1
     clc
-    adc #4
+    adc #>SCRMEM
     sta mscr+1
     ; add more for color location
-    adc #54272/256
+    adc #>COLMEM->SCRMEM
     sta mcolor+1
     rts
 
-; todo: randomize
+; use ROM as a substitute for random bytes
+
+GETRAND:
+    inc RANDPTR
+    bne GETRAND2
+    inc RANDPTR+1
+    bne GETRAND2
+    lda #$a0
+    sta RANDPTR+1
+GETRAND2:
+    lda $a000
+    rts
+
+RANDPTR = GETRAND2+1
+
+; TODO: randomize
 ; one raindrop for each column on the screen
 raindrops: 
     byte 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26
