@@ -2,16 +2,21 @@
     processor 6502
 
 .CHROUT        = $FFD2
+FONTPAGE         = $04
+FONTADDR         = $03
+TOPROW   = $05
+BOTROW   = $06
 
-    ORG $33C
+    ORG $33C  ; beginning of cassette buffer
 
-            LDA #$D0
-            STA $04
-            LDA $D018
+
+            LDA #$D0   ;uppercase
+            STA FONTPAGE
+            LDA $D018  ; get displayed font from VIC
             AND #$02
             BEQ .hc35f
-            LDA #$D8
-            STA $04
+            LDA #$D8  ; lowercase
+            STA FONTPAGE
 .hc35f:
             LDA #$00
             LDX #$03
@@ -21,15 +26,15 @@
             DEX
             BNE .hc363
             CLC
-            ADC $04
-            STA $04
+            ADC FONTPAGE
+            STA FONTPAGE
             LDA $FA
-            STA $03
+            STA FONTADDR
             LDA $DC0E
             AND #$FE
             STA $DC0E
             LDA $01
-            AND #$FB
+            AND #$FB  ; set $D000 to character set ROM
             STA $01
             LDA #$00
             STA $FA
@@ -37,24 +42,24 @@
             STA $02
 .hc388:
             LDY #$00
-            LDA ($03),Y
-            STA $05
-            INC $03
-            LDA ($03),Y
-            STA $06
-            INC $03
+            LDA (FONTADDR),Y
+            STA TOPROW
+            INC FONTADDR
+            LDA (FONTADDR),Y
+            STA BOTROW
+            INC FONTADDR
             DEC $02
             BEQ .hc3b6
             LDX #$04
 .hc39c:
             LDA #$00
-            ASL $06
+            ASL BOTROW
             ROL
-            ASL $06
+            ASL BOTROW
             ROL
-            ASL $05
+            ASL TOPROW
             ROL
-            ASL $05
+            ASL TOPROW
             ROL
             LDY $FA
             STA $0230,Y
@@ -64,10 +69,10 @@
             BEQ .hc388
 .hc3b6:
             LDA $01
-            ORA #$04
+            ORA #$04 ; map I/O to $D000
             STA $01
             LDA $DC0E
-            ORA #$01
+            ORA #$01 ; timer underflow on port B bit 6?
             STA $DC0E
             LDY #$00
 .CRSRRIGHT:
@@ -80,26 +85,26 @@
             BNE .hc3cc
 .hc3d2:
             LDA #$04
-            STA $06
+            STA BOTROW
 .hc3d6:
             LDA $0230,Y
             TAX
             LDA $02B0,X
-            STA $05
+            STA TOPROW
             AND #$40
             BEQ .hc3e8
-            LDA #$12
+            LDA #$12    ; RVS ON
             JSR .CHROUT
 .hc3e8:
-            LDA $05
+            LDA TOPROW
             AND #$BF
             JSR .CHROUT
-            LDA #$92
+            LDA #$92    ; RVS OFF
             JSR .CHROUT
             INY
-            DEC $06
+            DEC BOTROW
             BNE .hc3d6
-            LDA #$0D
+            LDA #$0D    ; RETURN
             JSR .CHROUT
             CPY #$10
             BNE .CRSRRIGHT
