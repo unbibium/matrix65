@@ -1,24 +1,9 @@
   processor 6502 
 
 ; This is supposed to generate a Matrix code rain effect.
-;
-; SYS 49152 to draw one frame.
-; FOR X=1 TO 1000:SYS 49152:NEXT X to display for a minute or so
 
-CHROUT = $FFD2
 mscr = $FB
 mcolor = $FD
-
-
-; color constants
-WHITE = 1
-  IFCONST VIC20
-LT_GREEN = 7
-  ELSE
-LT_GREEN = 13
-  ENDIF
-DK_GREEN = 5
-BLACK = 0
 
   IFCONST VIC20
 WIDTH = 22
@@ -27,8 +12,11 @@ HEIGHT = 23
 SCRMEM = 7680
 COLMEM = 38400
 PAGES = 2
-BASIC = 0
+  IFCONST BASIC
     ORG $1001
+  ELSE
+    ORG $033c
+  ENDIF
 
   ELSE
 ; screen dimensions
@@ -179,12 +167,12 @@ MASKBIT SET MASKBIT >> 1
     ; write low byte
     sta mscr
     sta mcolor
-    ; add 4 for screen location
+    ; add high byte for screen memory
     lda mscr+1
     clc
     adc #>SCRMEM
     sta mscr+1
-    ; add more for color location
+    ; add high byte for color memory
     adc #>COLMEM->SCRMEM
     sta mcolor+1
     rts
@@ -207,18 +195,25 @@ GETRAND2:
 RANDPTR = GETRAND2+1
 
 COLORS:
-    byte BLACK,DK_GREEN,BLACK,DK_GREEN
-    byte DK_GREEN,LT_GREEN,DK_GREEN,LT_GREEN,LT_GREEN,WHITE
+    IFCONST VIC20
+    byte 0,5,0,5,5,3,5,3,3,1
+    ELSE
+    byte 0,5,0,5,5,13,5,13,13,1
+    ENDIF
 ENDCOLORS
 
 numcolors = ENDCOLORS-COLORS
 
-; TODO: randomize
+; TODO: randomize in assembler?
 ; one raindrop for each column on the screen
 raindrops: 
-    byte 3,9,13,7,10,8,4,6
-    byte 2,9,3,1,12,10,9,4
-    byte 3,9,12,5,13,1,4,6
-    byte 2,9,3,1,12,10,9,4
-    byte 3,9,14,8,10,1,4,6
+    byte 3,9,13,7,10,8,4,16
+    byte 2,19,3,0,12,10,9,4
+    byte 3,9,12,5,13,1,4,16
+    IF WIDTH > 24
+    byte 2,19,3,1,12,10,9,4
+    IF WIDTH > 32
+    byte 3,19,14,8,10,1,4,6
+    ENDIF
+    ENDIF
 
