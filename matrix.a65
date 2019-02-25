@@ -12,7 +12,11 @@ mcolor = $FD
 
 ; color constants
 WHITE = 1
+  IFCONST VIC20
+LT_GREEN = 7
+  ELSE
 LT_GREEN = 13
+  ENDIF
 DK_GREEN = 5
 BLACK = 0
 
@@ -23,7 +27,8 @@ HEIGHT = 23
 SCRMEM = 7680
 COLMEM = 38400
 PAGES = 2
-    ORG $33c
+BASIC = 0
+    ORG $1001
 
   ELSE
 ; screen dimensions
@@ -37,6 +42,23 @@ PAGES = 4
 
   ENDIF
    
+  IFCONST BASIC
+    word ENDBASIC
+    word 2019
+    byte $9e    ; SYS
+    ; calculate ASCII instead of using dasm
+    ; expression because it's always 4 bytes.
+    byte INIT        / 1000 | $30
+    byte INIT % 1000 / 100  | $30
+    byte INIT % 100  / 10   | $30
+    byte INIT % 10          | $30
+    byte ':
+    byte $8a    ; RUN
+    byte $00 ; end of statement
+ENDBASIC:
+    byte $00,$00
+  ENDIF
+
 
 INIT:
 ; turn screen black and clear
@@ -128,15 +150,23 @@ MULROW:
     asl
     rol mscr+1
     adc mscr
-    bcc MULROWB
+    bcc .+4
     inc mscr+1
 MULROWB:
-    ; multiply by eight
-    rol 
+    ; multiply by 2
+    asl
     rol mscr+1
-    rol
+  IFCONST VIC20
+    ; add again to make a multiply-by-11
+    adc mscr
+    bcc .+4
+    inc mscr+1
+  ELSE
+    ; multiply by 2
+    asl 
     rol mscr+1
-    rol
+  ENDIF
+    asl
     rol mscr+1
     ; write low byte
     sta mscr
