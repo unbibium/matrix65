@@ -2,32 +2,52 @@
 
 ; This is supposed to generate a Matrix code rain effect.
 ;
-;
+; SYS 49152 to draw one frame.
+; FOR X=1 TO 1000:SYS 49152:NEXT X to display for a minute or so
 
-    ORG $c000
 CHROUT = $FFD2
 mscr = $FB
 mcolor = $FD
 
-SCRMEM = 1024
-COLMEM = 55296
-PAGES = 4  ; should be 4
 
 ; color constants
+WHITE = 1
 LT_GREEN = 13
 DK_GREEN = 5
+BLACK = 0
 
+  IFCONST VIC20
+WIDTH = 22
+HEIGHT = 23
+; unexpanded vic
+SCRMEM = 7680
+COLMEM = 38400
+PAGES = 2
+    ORG $33c
+
+  ELSE
 ; screen dimensions
 WIDTH = 40
 HEIGHT = 25
+SCRMEM = 1024
+COLMEM = 55296
+PAGES = 4
 
-START:
+    ORG $c000
+
+  ENDIF
+   
+
+INIT:
 ; turn screen black and clear
+  IFCONST VIC20
+    lda #8
+    sta 36879
+  ELSE
     lda #0
     sta $d020
     sta $d021
-    lda #147
-    jsr CHROUT
+  ENDIF
 ; main loop
 LOOP
     ldy #WIDTH-1
@@ -44,7 +64,7 @@ LOOP1:
 LOOPA:
     ;cmp #HEIGHT-1
     ;bcs LOOP2
-    jsr MUL40
+    jsr MULROW
     ; see if (mscr),y falls within screen boundary
     ldx mscr+1
     tya
@@ -78,7 +98,7 @@ TRAILLOOP:
 NEXTTRAIL:
     lda mcolor
     sec
-    sbc #40
+    sbc #WIDTH
     sta mcolor
     bcs NEXTTRAIL2
     dec mcolor+1
@@ -94,18 +114,11 @@ LOOP2
     bpl LOOP1
 ENDUT: 
     rts
-    ;jmp LOOP
-
-COLORS:
-    byte 0,5,5,5,13,13,1
-ENDCOLORS
-
-numcolors = ENDCOLORS-COLORS
 
 ;
 ; Multiply a row number by 40
 ;
-MUL40:
+MULROW:
     ; multiply by five
     sta mscr
     ldx #0
@@ -115,9 +128,9 @@ MUL40:
     asl
     rol mscr+1
     adc mscr
-    bcc MUL40B
+    bcc MULROWB
     inc mscr+1
-MUL40B:
+MULROWB:
     ; multiply by eight
     rol 
     rol mscr+1
@@ -140,23 +153,31 @@ MUL40B:
 
 ; use ROM as a substitute for random bytes
 
+ROMRAND = $e000
+
 GETRAND:
     inc RANDPTR
     bne GETRAND2
     inc RANDPTR+1
     bne GETRAND2
-    lda #$a0
+    lda #>ROMRAND
     sta RANDPTR+1
 GETRAND2:
-    lda $a000
+    lda ROMRAND
     rts
 
 RANDPTR = GETRAND2+1
 
+COLORS:
+    byte BLACK,DK_GREEN,BLACK,DK_GREEN
+    byte DK_GREEN,LT_GREEN,DK_GREEN,LT_GREEN,LT_GREEN,WHITE
+ENDCOLORS
+
+numcolors = ENDCOLORS-COLORS
+
 ; TODO: randomize
 ; one raindrop for each column on the screen
 raindrops: 
-    byte 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26
     byte 3,9,13,7,10,8,4,6
     byte 2,9,3,1,12,10,9,4
     byte 3,9,12,5,13,1,4,6
