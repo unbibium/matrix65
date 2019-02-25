@@ -38,7 +38,11 @@ SCRMEM = 1024
 COLMEM = 55296
 PAGES = 4
 
+  IFCONST BASIC
+    ORG $0801
+  ELSE
     ORG $c000
+  ENDIF
 
   ENDIF
    
@@ -138,36 +142,46 @@ ENDUT:
     rts
 
 ;
-; Multiply a row number by 40
+; Multiply a row number by WIDTH
 ;
 MULROW:
-    ; multiply by five
-    sta mscr
-    ldx #0
-    stx mscr+1
-    asl
-    rol mscr+1
-    asl
-    rol mscr+1
-    adc mscr
-    bcc .+4
-    inc mscr+1
-MULROWB:
-    ; multiply by 2
-    asl
-    rol mscr+1
-  IFCONST VIC20
-    ; add again to make a multiply-by-11
-    adc mscr
-    bcc .+4
-    inc mscr+1
-  ELSE
-    ; multiply by 2
-    asl 
-    rol mscr+1
-  ENDIF
-    asl
-    rol mscr+1
+        ; store value to be multiplied into
+        ; low byte temporarily.
+        sta mscr
+        ldx #0
+        stx mscr+1
+        ; use a loop to build the appropriate
+	; multiplication routine
+MASKBIT SET $80 ; will cover each bit
+TRAILING SET 1  ; trailing zeroes flag, will clear on
+                ; first 1 bit found.
+        ; loop through each bit
+        REPEAT 8
+        IF MASKBIT <= WIDTH ; skip if trailing 0
+PUSHBIT SET WIDTH & MASKBIT
+         IF PUSHBIT ; a 1 was found
+        IF TRAILING
+TRAILING SET 0 ; no longer need to skip trailing 0s
+        ; The A register now represents the
+        ; the leftmost '1' bit, so we can
+	; start shifting more bits from the right
+        ELSE
+	; shift a 1
+        asl
+        rol mscr+1
+        adc mscr
+        bcc .+4
+        inc mscr+1
+        ENDIF
+        ELSE ; a 0 was found but not trailing
+        asl
+        rol mscr+1
+        ENDIF ; PUSHBIT is true
+        ENDIF ; MASKBIT <= WIDTH
+
+MASKBIT SET MASKBIT >> 1
+
+        REPEND
     ; write low byte
     sta mscr
     sta mcolor
