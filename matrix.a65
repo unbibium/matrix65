@@ -158,26 +158,20 @@ TRAILING SET 1  ; trailing zeroes flag, will clear on
         ; loop through each bit
         REPEAT 8
         IF MASKBIT <= WIDTH ; skip if trailing 0
-PUSHBIT SET WIDTH & MASKBIT
-         IF PUSHBIT ; a 1 was found
         IF TRAILING
+        ; found leftmost '1' bit.
 TRAILING SET 0 ; no longer need to skip trailing 0s
-        ; The A register now represents the
-        ; the leftmost '1' bit, so we can
-	; start shifting more bits from the right
-        ELSE
-	; shift a 1
+	; we can start shifting more bits from the right
+        ELSE ; multiply by two
         asl
         rol mscr+1
+        IF WIDTH & MASKBIT ; push a 1
         adc mscr
         bcc .+4
         inc mscr+1
-        ENDIF
-        ELSE ; a 0 was found but not trailing
-        asl
-        rol mscr+1
-        ENDIF ; PUSHBIT is true
-        ENDIF ; MASKBIT <= WIDTH
+        ENDIF ; whether to push a 1
+        ENDIF ; whether we're flipping the trailing bit
+        ENDIF ; whether we're in a trailing zero
 
 MASKBIT SET MASKBIT >> 1
 
