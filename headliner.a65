@@ -1,34 +1,66 @@
+;
+; Screen Headliner was originally a program from Compute!'s 
+; Gazette, which allows you to draw PETSCII characters at four 
+; times the regular size, using the PETSCII quadrant characters.
+;
+; This version has the following improvements:
+;  * More compact so that the PETSCII quadrant table can be
+;    stored contiguously -- the original version required
+;    an extra READ loop.
+;  * Controls the cursor position and RVS state by manipulating
+;    the OS variables instead of outputting control codes.
+;  * Can print against the right edge of the screen without
+;    breaking up the character.
+; 
 
     processor 6502
 
 .CHROUT        = $FFD2
-FONTPAGE         = $04
-FONTADDR         = $03
+
+; zero-page variables
+ROWLOOP  = $02
+FONTPAGE = $04
+FONTADDR = $03
 TOPROW   = $05
 BOTROW   = $06
 
-    ORG $33C  ; beginning of cassette buffer
+; array to store the 16 petscii characters to write
+PIXELS   = $0230
 
+; PETSCII constants
+CR         = $0D
+; OS locations for manipulating output
+RVS        = $C7
+COLUMN     = $D3
 
-            LDA #$D0   ;uppercase
-            STA FONTPAGE
+; parameters
+; starting X-position of character
+XPOS       = $F9
+; screen code of character to draw
+CHAR       = $FA
+; this is reused as the index in the final loop
+
+; default origin.
+ORIGIN     = $033C
+
+        ORG ORIGIN
+
             LDA $D018  ; get displayed font from VIC
             AND #$02
-            BEQ .hc35f
-            LDA #$D8  ; lowercase
+            ASL
+            ASL
+            ADC #$D0
             STA FONTPAGE
-.hc35f:
             LDA #$00
             LDX #$03
 .hc363:
-            ASL $FA
+            ASL CHAR
             ROL
             DEX
             BNE .hc363
-            CLC
             ADC FONTPAGE
             STA FONTPAGE
-            LDA $FA
+            LDA CHAR
             STA FONTADDR
             LDA $DC0E
             AND #$FE
@@ -37,9 +69,9 @@ BOTROW   = $06
             AND #$FB  ; set $D000 to character set ROM
             STA $01
             LDA #$00
-            STA $FA
+            STA CHAR
             LDA #$05
-            STA $02
+            STA ROWLOOP
 .hc388:
             LDY #$00
             LDA (FONTADDR),Y
@@ -48,7 +80,7 @@ BOTROW   = $06
             LDA (FONTADDR),Y
             STA BOTROW
             INC FONTADDR
-            DEC $02
+            DEC ROWLOOP
             BEQ .hc3b6
             LDX #$04
 .hc39c:
@@ -61,9 +93,9 @@ BOTROW   = $06
             ROL
             ASL TOPROW
             ROL
-            LDY $FA
-            STA $0230,Y
-            INC $FA
+            LDY CHAR
+            STA PIXELS,Y
+            INC CHAR
             DEX
             BNE .hc39c
             BEQ .hc388
@@ -75,38 +107,45 @@ BOTROW   = $06
             ORA #$01 ; timer underflow on port B bit 6?
             STA $DC0E
             LDY #$00
-.CRSRRIGHT:
-            LDX $F9
-            BEQ .hc3d2
-            LDA #$1D
-.hc3cc:
-            JSR .CHROUT
-            DEX
-            BNE .hc3cc
-.hc3d2:
+.MOVERIGHT:
+            LDX XPOS
+            STX COLUMN
             LDA #$04
             STA BOTROW
 .hc3d6:
-            LDA $0230,Y
+            LDA PIXELS,Y
             TAX
-            LDA $02B0,X
-            STA TOPROW
+            LDA QUADRANTS,X
             AND #$40
-            BEQ .hc3e8
-            LDA #$12    ; RVS ON
-            JSR .CHROUT
-.hc3e8:
-            LDA TOPROW
+            STA RVS
+            LDA QUADRANTS,X
             AND #$BF
-            JSR .CHROUT
-            LDA #$92    ; RVS OFF
             JSR .CHROUT
             INY
             DEC BOTROW
             BNE .hc3d6
-            LDA #$0D    ; RETURN
+            LDA XPOS
+            CMP #36  ; printing at right edge of screen?
+            BMI DOCR
+	    ; add and subtract 40 to X position.
+	    EOR #104
+	    STA XPOS
+	    BNE NOCR
+DOCR
+            LDA #CR
             JSR .CHROUT
+NOCR
             CPY #$10
-            BNE .CRSRRIGHT
+            BNE .MOVERIGHT
           RTS
+
+;
+; PETSCII characters representing the pixel graphic
+; characters.  Bit $40 is a flag for whether to turn
+; reverse on for this character, and is filtered out.
+;
+QUADRANTS
+        byte 32,188,190,226,172,225,191,251
+        byte 187,255,161,236,162,254,252,96
+
 
