@@ -12,8 +12,10 @@ matrix64bas: matrix.a65
 
 matrix20: matrix.a65
 	$(DASM) matrix.a65 -DBASIC -DVIC20 -omatrix-3k.prg -smatrix-3k.sym
+	$(DASM) matrix.a65 -DBIG -DVIC20 -omatrix-big.prg -smatrix-big.sym
 	$(DASM) matrix.a65 -DVIC20 -omatrix-828.prg -smatrix-828.sym
 	c1541 -format matrix,m2 d64 matrix-vic.d64 8 \
-		-write matrix-3k.prg matrix-3k \
+		-write matrix-3k.prg matrix \
+		-write matrix-big.prg big-matrix \
 		-write matrix-828.prg matrix-828
 
