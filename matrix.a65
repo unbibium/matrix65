@@ -1,13 +1,44 @@
   processor 6502 
 
 ; This is supposed to generate a Matrix code rain effect.
+;
+; It is designed to be run inside a loop in BASIC, so that
+; RUN/STOP and keyboard checks can be done from BASIC.
+; For the C64 $C000 build, for example, you could do
+; something like this: 
+;    FOR X=1 TO 3000:SYS 49152:NEXT X
+;
+; Compiler flags (-D in dasm):
+;
+; BASIC:
+;    builds as a BASIC program.  SYS 2063:RUN
+; VIC20:
+;    builds for an unexpanded VIC-20.  This version
+;    fits in the tape buffer so you can call it with
+;    SYS 828.
+; BIG:
+;    combined with VIC20, builds one that fills the
+;    screen by using double-height character mode and
+;    27 columns.
+; 
+; the arcane method of performing the row multiplication is
+; important, not only to be able to build both C64 and VIC
+; versions, but also to eventually build a version for the
+; VIC that will fill the screen by declaring more rows and
+; columns.
 
 mscr = $FB
 mcolor = $FD
 
   IFCONST VIC20
+    IFCONST BIG
+WIDTH = 27
+HEIGHT = 15
+BASIC = 0
+	ELSE
 WIDTH = 22
 HEIGHT = 23
+    ENDIF
 ; unexpanded vic
 SCRMEM = 7680
 COLMEM = 38400
@@ -35,11 +66,13 @@ PAGES = 4
   ENDIF
    
   IFCONST BASIC
-    word ENDBASIC
-    word 2019
+    word ENDBASIC ; pointer to next line
+    word 2019     ; line number
     byte $9e    ; SYS
-    ; calculate ASCII instead of using dasm
-    ; expression because it's always 4 bytes.
+    ; INIT address in ASCII decimal.  calculating
+    ; it this way instead of using dasm expressions
+    ; because dasm gets confused, and we know it's 
+    ; always 4 bytes.
     byte INIT        / 1000 | $30
     byte INIT % 1000 / 100  | $30
     byte INIT % 100  / 10   | $30
@@ -53,10 +86,26 @@ ENDBASIC:
 
 
 INIT:
-; turn screen black and clear
+; turn screen black
   IFCONST VIC20
     lda #8
     sta 36879
+    IFCONST BIG
+          lda $9000
+          cmp #$6
+          bpl PALBIG
+	  lda #1
+	  ldx #14
+          bpl NTSCBIG
+PALBIG    lda #7
+          ldx #21
+NTSCBIG	  sta $9000
+	  stx $9001
+	  lda #(WIDTH | $80)  ; high bit for screen mem
+	  sta $9002
+	  lda #(HEIGHT*2 | 1) ; low bit for 16-byte characters
+	  sta $9003
+	ENDIF
   ELSE
     lda #0
     sta $d020
@@ -76,8 +125,6 @@ LOOP1:
     ora #$F0
     sta raindrops,y
 LOOPA:
-    ;cmp #HEIGHT-1
-    ;bcs LOOP2
     jsr MULROW
     ; see if (mscr),y falls within screen boundary
     ldx mscr+1
@@ -205,15 +252,16 @@ ENDCOLORS
 numcolors = ENDCOLORS-COLORS
 
 ; TODO: randomize in assembler?
+; Memory for raindrop's vertical positions
 ; one raindrop for each column on the screen
 raindrops: 
     byte 3,9,13,7,10,8,4,16
     byte 2,19,3,0,12,10,9,4
-    byte 3,9,12,5,13,1,4,16
-    IF WIDTH > 24
-    byte 2,19,3,1,12,10,9,4
-    IF WIDTH > 32
+    byte 3,9,12,5,13,1
+    IF WIDTH > 22
+    byte 4,16,2,19,3
+    IF WIDTH > 27
+    byte 1,12,10,9,4
     byte 3,19,14,8,10,1,4,6
     ENDIF
     ENDIF
-
