@@ -1,8 +1,12 @@
 DASM=dasm
 
-all: matrix64 matrix20
+all: matrix64 matrix20 headliner
 
 matrix64: matrix64c000 matrix64bas
+
+headliner: headliner.a65
+	$(DASM) headliner.a65 -oheadliner-033c.prg -sheadliner-033c.sym
+	$(DASM) headliner.a65 -DORIGIN=49664 -oheadliner-c200.prg -sheadliner-c200.sym
 
 matrix64c000: matrix.a65
 	$(DASM) matrix.a65 -omatrix-c000.prg -smatrix-c000.sym

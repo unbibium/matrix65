@@ -41,7 +41,9 @@ CHAR       = $FA
 ; this is reused as the index in the final loop
 
 ; default origin.
+        IFNCONST ORIGIN
 ORIGIN     = $033C
+        ENDIF
 
         ORG ORIGIN
 
