@@ -47,18 +47,14 @@ ORIGIN     = $033C
 
             LDA $D018  ; get displayed font from VIC
             AND #$02
-            ASL
-            ASL
-            ADC #$D0
-            STA FONTPAGE
-            LDA #$00
+            LSR
+            ADC #$D0 >> 3
             LDX #$03
 .hc363:
             ASL CHAR
             ROL
             DEX
             BNE .hc363
-            ADC FONTPAGE
             STA FONTPAGE
             LDA CHAR
             STA FONTADDR
