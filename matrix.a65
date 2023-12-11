@@ -69,10 +69,10 @@ PAGES = 4
     word ENDBASIC ; pointer to next line
     word 2019     ; line number
     byte $9e    ; SYS
-    ; INIT address in ASCII decimal.  calculating
-    ; it this way instead of using dasm expressions
-    ; because dasm gets confused, and we know it's 
-    ; always 4 bytes.
+    ; INIT address in ASCII decimal.  we can't ask DASM to
+    ; render INIT in text because it's afraid it might change
+    ; the number of digits.  But assuming it's always 4 digits
+    ; in decimal, we can render it digit-by-digit like this:
     byte INIT        / 1000 | $30
     byte INIT % 1000 / 100  | $30
     byte INIT % 100  / 10   | $30
@@ -81,7 +81,7 @@ PAGES = 4
     byte $8a    ; RUN
     byte $00 ; end of statement
 ENDBASIC:
-    byte $00,$00
+    byte $00,$00 ; end of program
   ENDIF
 
 
