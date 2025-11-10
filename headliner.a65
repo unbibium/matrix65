@@ -18,11 +18,10 @@
 .CHROUT        = $FFD2
 
 ; zero-page variables
-ROWLOOP  = $02
 FONTPAGE = $04
 FONTADDR = $03
-TOPROW   = $05
-BOTROW   = $06
+TOPROW   = $05  ; bits from even-numbered character byte
+BOTROW   = $06  ; bits from odd-numbered character byte
 
 ; array to store the 16 petscii characters to write
 PIXELS   = $0230
@@ -60,28 +59,26 @@ ORIGIN     = $033C
             STA FONTPAGE
             LDA CHAR
             STA FONTADDR
+            ; disable interrupts and map CHARGEN into CPU memory
             LDA $DC0E
             AND #$FE
             STA $DC0E
             LDA $01
             AND #$FB  ; set $D000 to character set ROM
             STA $01
-            LDA #$00
-            STA CHAR
-            LDA #$05
-            STA ROWLOOP
-.hc388:
+            ; copy ROM into RAM while rearranging bits.
             LDY #$00
+            STY CHAR
+            ; assert Y=0 whenever branched here
+SETPIXELS:  ; read two rows of pixels from ROM
             LDA (FONTADDR),Y
             STA TOPROW
             INC FONTADDR
             LDA (FONTADDR),Y
             STA BOTROW
             INC FONTADDR
-            DEC ROWLOOP
-            BEQ .hc3b6
-            LDX #$04
-.hc39c:
+            LDY #$04
+GETPIXELS:  ; rearrange into four sets of 2x2 pixels
             LDA #$00
             ASL BOTROW
             ROL
@@ -91,13 +88,14 @@ ORIGIN     = $033C
             ROL
             ASL TOPROW
             ROL
-            LDY CHAR
-            STA PIXELS,Y
+            LDX CHAR
+            STA PIXELS,X
             INC CHAR
-            DEX
-            BNE .hc39c
-            BEQ .hc388
-.hc3b6:
+            DEY
+            BNE GETPIXELS  ; else Y=0 for next branch
+            CPX #15 ; use pre-incremented CHAR to see if we're done
+            BNE SETPIXELS ;  restart loop, Y=0
+ENABLEROM:
             LDA $01
             ORA #$04 ; map I/O to $D000
             STA $01
@@ -108,9 +106,7 @@ ORIGIN     = $033C
 .MOVERIGHT:
             LDX XPOS
             STX COLUMN
-            LDA #$04
-            STA BOTROW
-.hc3d6:
+PUTPIXELS:
             LDA PIXELS,Y
             TAX
             LDA QUADRANTS,X
@@ -120,12 +116,15 @@ ORIGIN     = $033C
             AND #$BF
             JSR .CHROUT
             INY
-            DEC BOTROW
-            BNE .hc3d6
+            ; test for multiples of 4
+            TYA
+            AND #3
+            BNE PUTPIXELS
+            ; every 4 characters, move to next row
             LDA XPOS
             CMP #36  ; printing at right edge of screen?
             BMI DOCR
-	    ; add and subtract 40 to X position.
+	    ; toggle between 36 and 76 each printed row
 	    EOR #104
 	    STA XPOS
 	    BNE NOCR
@@ -143,7 +142,22 @@ NOCR
 ; reverse on for this character, and is filtered out.
 ;
 QUADRANTS
-        byte 32,188,190,226,172,225,191,251
-        byte 187,255,161,236,162,254,252,96
+             ;hex   ; petscii      upper  lower
+        byte $20    ;     SPACE      00    00
+        byte $bc    ;     C= C       01    00
+        byte $be    ;     C= V       10    00
+        byte $e2    ; RVS C= I       11    00
+        byte $ac    ;     C= D       00    01
+        byte $e1    ; RVS C= K       01    01
+        byte $bf    ;     C= B       10    01
+        byte $fb    ; RVS C= F       11    01
+        byte $bb    ;     C= F       00    10
+        byte $ff    ; RVS C= B       01    10
+        byte $a1    ;     C= K       10    10
+        byte $ec    ; RVS C= D       11    10
+        byte $a2    ;     C= I       00    11
+        byte $fe    ; RVS C= V       01    11
+        byte $fc    ; RVS C= C       10    11
+        byte $60    ; RVS SPACE      11    11
 
 
