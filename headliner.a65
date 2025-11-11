@@ -60,9 +60,7 @@ ORIGIN     = $033C
             LDA CHAR
             STA FONTADDR
             ; disable interrupts and map CHARGEN into CPU memory
-            LDA $DC0E
-            AND #$FE
-            STA $DC0E
+            DEC $DC0E ; assume interrupts were on, turn them off
             LDA $01
             AND #$FB  ; set $D000 to character set ROM
             STA $01
@@ -99,9 +97,7 @@ ENABLEROM:
             LDA $01
             ORA #$04 ; map I/O to $D000
             STA $01
-            LDA $DC0E
-            ORA #$01 ; timer underflow on port B bit 6?
-            STA $DC0E
+            INC $DC0E ; assume interrupts were off, turn them on
             LDY #$00
 .MOVERIGHT:
             LDX XPOS
