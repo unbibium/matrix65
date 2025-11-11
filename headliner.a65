@@ -112,8 +112,7 @@ PUTPIXELS:
             LDA QUADRANTS,X
             AND #$40
             STA RVS
-            LDA QUADRANTS,X
-            AND #$BF
+            EOR QUADRANTS,X
             JSR .CHROUT
             INY
             ; test for multiples of 4
